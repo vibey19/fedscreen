@@ -1,4 +1,6 @@
-# Federated colorectal cancer screening indicators
+# fedscreen
+
+**Federated colorectal cancer screening indicators.**
 
 This project is a small, working example of federated analysis for cancer
 screening statistics. Three fictional screening sites each hold their own
