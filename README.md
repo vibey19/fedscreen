@@ -18,8 +18,9 @@ every parameter used.
 
 ## Status
 
-Work in progress. The simulated data is in place (phase 1). The indicators,
-the central step and the dashboard are still to come.
+Work in progress. The simulated data, the indicators and the local pipeline
+are in place (phases 1 and 2). The central combination step and the dashboard
+are still to come.
 
 ## Getting started
 
@@ -42,5 +43,43 @@ kept in the repository, because they stand in for data that is not allowed to
 leave a site. They are rebuilt from a fixed seed, so everyone gets identical
 data.
 
-More detail on running the pipeline and the dashboard will be added as the
-project is built up.
+Then run the local pipeline at each site. This is the step that in a real
+federated study would run on the site's own machine:
+
+```r
+source("R/local_pipeline.R")
+run_all_local_pipelines()
+```
+
+Each site writes one aggregate CSV to `data/aggregates/`. Those files are
+small and are kept in the repository, because they are what a site is allowed
+to share.
+
+To run the tests:
+
+```sh
+Rscript -e 'testthat::test_dir("tests/testthat")'
+```
+
+## Indicators
+
+Eight indicators, each with a 95% confidence interval, each defined in
+`R/indicators.R` and described with its numerator and denominator in
+[docs/indicators.md](docs/indicators.md):
+
+- Participation rate
+- FIT positivity rate
+- Colonoscopy completion
+- Cancer detection rate per 1,000 screened
+- Advanced adenoma detection rate per 1,000 screened
+- PPV of FIT for cancer, and for advanced neoplasia
+- Interval cancer rate per 1,000 negative FITs
+
+Proportions get a Wilson score interval and rates get an exact Poisson
+interval. Both are written out by hand in `R/indicators.R`.
+
+Any count between 1 and 4 is suppressed before a site exports anything, which
+is how registries protect small groups from being identified. The rule is
+described in [docs/assumptions.md](docs/assumptions.md).
+
+More detail on the dashboard will be added as the project is built up.

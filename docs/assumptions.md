@@ -150,6 +150,49 @@ sex and age group almost every interval cancer cell is small enough to be
 suppressed. That is realistic. Registries report rare events over longer
 periods and wider groups for exactly this reason.
 
+## The small-number suppression rule
+
+Before a site exports anything, every count from 1 to 4 is removed.
+
+- A count of 1, 2, 3 or 4 is replaced by an empty value and the row is flagged
+  with `suppressed = TRUE`.
+- Anything calculated from a suppressed count goes with it: the estimate and
+  both confidence limits are emptied too. Publishing the proportion and the
+  denominator would hand back the numerator (0.25 of 8 is 2).
+- A count of 0 is published. Zero says nobody is in the cell, so there is
+  nobody to identify.
+- A count of 5 or more is published.
+- The flag matters as much as the removal. Without it, a dashboard cannot tell
+  "too small to show" apart from "no data", and the two mean different things.
+  Suppressed cells are shown as "suppressed", never as zero.
+
+The rule is in `R/suppress.R`. The threshold of 5 is the one the brief asks
+for. Registries differ on the exact number, and the right one for real data
+would be whatever the data holder's disclosure policy says.
+
+There is a final check in `R/local_pipeline.R`, `assert_no_small_counts()`,
+which refuses to write the export at all if any count between 1 and 4 is still
+present. It should be impossible to reach. It is there because the cost of
+being wrong is a privacy breach, not a wrong number, so the pipeline should
+stop rather than publish.
+
+### What this rule does not do
+
+- **No secondary suppression.** If a table shows a total and all but one of its
+  parts, the missing part can be worked out by subtraction. A registry would
+  suppress a second cell to block that. This project does not, and the six
+  breakdown levels it exports overlap, so some suppressed values could be
+  recovered by combining them. That is a known gap, kept out on purpose to stay
+  small, and it would have to be closed before anything like this touched real
+  data.
+- **It does not protect the derived numerator of PPV for advanced neoplasia.**
+  That numerator is cancers plus advanced adenomas, so it can be published when
+  the sum is 5 or more even if one part is smaller than 5. The parts are
+  suppressed in their own rows, and only the sum is released, so nothing small
+  is published directly.
+- **No rounding or perturbation.** Published counts are exact. Some registries
+  also round counts to the nearest 5, or add small random noise.
+
 ## Known simplifications
 
 - **Each row is one invitation, not one followed person.** Nobody is linked
