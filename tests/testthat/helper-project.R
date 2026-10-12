@@ -10,3 +10,4 @@ if (file.exists("../../R/indicators.R")) {
 
 source("R/indicators.R")
 source("R/suppress.R")
+source("R/local_pipeline.R")
