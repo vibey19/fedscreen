@@ -18,7 +18,8 @@ every parameter used.
 
 ## Status
 
-Work in progress. Phase 0 (project setup) is done.
+Work in progress. The simulated data is in place (phase 1). The indicators,
+the central step and the dashboard are still to come.
 
 ## Getting started
 
@@ -28,6 +29,18 @@ package versions:
 ```r
 renv::restore()
 ```
+
+Then generate the three site databases:
+
+```r
+source("R/simulate.R")
+build_all_sites()
+```
+
+That writes one duckdb file per site into `data/sites/`. Those files are not
+kept in the repository, because they stand in for data that is not allowed to
+leave a site. They are rebuilt from a fixed seed, so everyone gets identical
+data.
 
 More detail on running the pipeline and the dashboard will be added as the
 project is built up.
