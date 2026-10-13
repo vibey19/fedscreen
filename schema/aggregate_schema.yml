@@ -1,0 +1,135 @@
+# The contract between a site and the central analysis.
+#
+# Every site exports a CSV with exactly these columns, carrying exactly these
+# kinds of values. The central step reads this file and checks each export
+# against it before combining anything, so a site that changes its output, or
+# sends something it should not, is caught here instead of quietly producing a
+# wrong comparison.
+#
+# This file is the shared part of a federated study. In a real one it would be
+# agreed between the participating registries up front, published, and
+# versioned, because every site has to code against it without being able to
+# see anyone else's data.
+
+table: site_aggregate
+version: 1
+
+# These five columns together identify a row. No two rows may repeat the same
+# combination, in one file or across the combined set.
+key:
+  - site
+  - screening_year
+  - sex
+  - age_group
+  - indicator
+
+columns:
+  - name: site
+    type: character
+    missing_ok: false
+    description: The site that produced the row, read from the site's own data.
+
+  - name: screening_year
+    type: character
+    missing_ok: false
+    pattern: "^(All|[0-9]{4})$"
+    description: A four digit year, or All when the years are combined.
+
+  - name: sex
+    type: character
+    missing_ok: false
+    allowed: [female, male, All]
+    description: Sex, or All when both are combined.
+
+  - name: age_group
+    type: character
+    missing_ok: false
+    pattern: "^(All|[0-9]{2}-[0-9]{2})$"
+    description: Five year age band, or All when all ages are combined.
+
+  - name: indicator
+    type: character
+    missing_ok: false
+    allowed:
+      - participation
+      - fit_positivity
+      - colonoscopy_completion
+      - cancer_detection_rate
+      - advanced_adenoma_detection_rate
+      - ppv_cancer
+      - ppv_advanced_neoplasia
+      - interval_cancer_rate
+    description: Which indicator the row reports. Defined in R/indicators.R.
+
+  - name: measure
+    type: character
+    missing_ok: false
+    allowed: [proportion, rate_per_1000]
+    description: How to read the estimate. Decides the formatting and the kind
+      of confidence interval used.
+
+  - name: numerator
+    type: integer
+    missing_ok: true
+    min: 0
+    description: Count of events. Empty when suppressed.
+
+  - name: denominator
+    type: integer
+    missing_ok: true
+    min: 0
+    description: Count of people at risk. Empty when suppressed.
+
+  - name: estimate
+    type: double
+    missing_ok: true
+    min: 0
+    description: The proportion (0 to 1) or the rate per 1,000. Empty when
+      suppressed, or when the denominator is zero.
+
+  - name: ci_lower
+    type: double
+    missing_ok: true
+    min: 0
+    description: Lower limit of the 95% confidence interval, on the same scale
+      as the estimate.
+
+  - name: ci_upper
+    type: double
+    missing_ok: true
+    min: 0
+    description: Upper limit of the 95% confidence interval.
+
+  - name: suppressed
+    type: logical
+    missing_ok: false
+    description: TRUE when the cell was too small to publish.
+
+# Checks that involve more than one column. Each one is implemented in
+# R/central.R, in the function named here, so this list and the code stay
+# together.
+rules:
+  # No published count may fall in the suppression range. A site is supposed
+  # to have done this already. The central step checks it again, because the
+  # central step is where a mistake becomes public.
+  - name: no_small_counts
+    description: No numerator or denominator between 1 and 4.
+
+  - name: suppressed_rows_are_empty
+    description: A row flagged as suppressed carries no estimate and no
+      confidence interval.
+
+  - name: published_rows_have_an_estimate
+    description: A row not flagged as suppressed has an estimate, unless its
+      denominator is zero.
+
+  - name: estimate_inside_interval
+    description: The estimate sits between its own confidence limits.
+
+  - name: proportions_are_proportions
+    description: Where measure is proportion, the estimate and both limits are
+      no greater than 1, and the numerator is no greater than the denominator.
+
+  - name: key_is_unique
+    description: No two rows share the same site, year, sex, age group and
+      indicator.
