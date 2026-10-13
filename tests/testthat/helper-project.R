@@ -30,4 +30,5 @@ local({
   source("R/suppress.R")
   source("R/local_pipeline.R")
   source("R/central.R")
+  source("R/dashboard.R")
 })

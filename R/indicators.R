@@ -106,6 +106,7 @@ indicator_definitions <- list(
   list(
     name = "participation",
     label = "Participation rate",
+    short = "Participation",
     measure = "proportion",
     numerator = "n_screened",
     denominator = "n_invited"
@@ -113,6 +114,7 @@ indicator_definitions <- list(
   list(
     name = "fit_positivity",
     label = "FIT positivity rate",
+    short = "FIT positivity",
     measure = "proportion",
     numerator = "n_fit_positive",
     denominator = "n_screened"
@@ -120,6 +122,7 @@ indicator_definitions <- list(
   list(
     name = "colonoscopy_completion",
     label = "Colonoscopy completion",
+    short = "Colonoscopy completion",
     measure = "proportion",
     numerator = "n_colonoscopy",
     denominator = "n_fit_positive"
@@ -127,6 +130,7 @@ indicator_definitions <- list(
   list(
     name = "cancer_detection_rate",
     label = "Cancer detection rate per 1,000 screened",
+    short = "Cancer detection",
     measure = "rate_per_1000",
     numerator = "n_cancer",
     denominator = "n_screened"
@@ -134,6 +138,7 @@ indicator_definitions <- list(
   list(
     name = "advanced_adenoma_detection_rate",
     label = "Advanced adenoma detection rate per 1,000 screened",
+    short = "Advanced adenoma detection",
     measure = "rate_per_1000",
     numerator = "n_advanced_adenoma",
     denominator = "n_screened"
@@ -141,6 +146,7 @@ indicator_definitions <- list(
   list(
     name = "ppv_cancer",
     label = "PPV of FIT for cancer",
+    short = "PPV, cancer",
     measure = "proportion",
     numerator = "n_cancer",
     denominator = "n_colonoscopy"
@@ -148,6 +154,7 @@ indicator_definitions <- list(
   list(
     name = "ppv_advanced_neoplasia",
     label = "PPV of FIT for advanced neoplasia",
+    short = "PPV, advanced neoplasia",
     measure = "proportion",
     numerator = c("n_cancer", "n_advanced_adenoma"),
     denominator = "n_colonoscopy"
@@ -155,6 +162,7 @@ indicator_definitions <- list(
   list(
     name = "interval_cancer_rate",
     label = "Interval cancer rate per 1,000 negative FITs",
+    short = "Interval cancer",
     measure = "rate_per_1000",
     numerator = "n_interval_cancer",
     denominator = "n_fit_negative"
@@ -162,9 +170,17 @@ indicator_definitions <- list(
 )
 
 #' Indicator labels, for the dashboard
-indicator_labels <- function() {
+#'
+#' `field` is "label" for the full name used in tables and documentation, or
+#' "short" for the compact one used on chart axes, where a long name squeezes
+#' the plotting area down to nothing on a narrow screen. Both live in
+#' indicator_definitions so there is one place to change a name.
+indicator_labels <- function(field = "label") {
+  if (!field %in% c("label", "short")) {
+    stop("field must be label or short, not ", field, call. = FALSE)
+  }
   stats::setNames(
-    vapply(indicator_definitions, function(d) d$label, character(1)),
+    vapply(indicator_definitions, function(d) d[[field]], character(1)),
     vapply(indicator_definitions, function(d) d$name, character(1))
   )
 }
