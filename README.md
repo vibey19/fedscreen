@@ -21,8 +21,10 @@ every parameter used.
 ## Status
 
 Work in progress. The pipeline runs end to end: simulated data, local
-indicators at each site, and the central step that checks and combines what
-the sites export. The dashboard is still to come.
+indicators at each site, the central step that checks and combines what the
+sites export, and a dashboard built from the combined table. Still to come:
+a Dockerfile, and a GitHub Actions workflow to run the tests and publish the
+dashboard.
 
 ## Getting started
 
@@ -58,7 +60,17 @@ That takes about a second and does four things in order:
 changed does nothing, and changing the schema re-runs the checking without
 re-simulating the data.
 
-To run the tests (138 of them):
+Then build the dashboard:
+
+```sh
+quarto render
+```
+
+That writes `_site/dashboard/index.html`, which you can open in a browser. It
+needs Quarto installed (built with 1.10). The dashboard reads
+`data/combined/indicators.csv` and nothing else.
+
+To run the tests (181 of them):
 
 ```sh
 Rscript -e 'testthat::test_dir("tests/testthat")'
@@ -104,4 +116,19 @@ Any count between 1 and 4 is suppressed before a site exports anything, which
 is how registries protect small groups from being identified. The rule is
 described in [docs/assumptions.md](docs/assumptions.md).
 
-More detail on the dashboard will be added as the project is built up.
+## The dashboard
+
+Four pages, built with Quarto and plotly from the combined table:
+
+- **Overview**: every indicator for every site, with confidence intervals, as
+  a chart and as a table.
+- **Trends**: the same indicators across the three screening years.
+- **Sex and age**: the breakdown by sex and by age band, and a table showing
+  what suppression hides.
+- **About the data**: that the data is simulated, how the federated setup
+  works, and the suppression rule in full.
+
+A suppressed cell is shown as the word "suppressed", never as a zero. That
+distinction matters: zero means a site looked and found nothing, suppressed
+means a site found between 1 and 4 and is not allowed to say. The dashboard
+has a table showing both in the same column, and there is a test for it.
