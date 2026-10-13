@@ -18,9 +18,8 @@ renv/sandbox/
 
 # Quarto render output
 /.quarto/
-dashboard/_site/
-dashboard/index_files/
-dashboard/*.html
+/_site/
+**/*.quarto_ipynb
 
 # OS clutter
 .DS_Store

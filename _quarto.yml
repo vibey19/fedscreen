@@ -1,0 +1,15 @@
+# Makes the repository root a Quarto project, rather than rendering the .qmd on
+# its own. Two reasons:
+#
+#   execute-dir: project  -> R starts in the project root, so .Rprofile runs
+#                            and renv gives the dashboard the pinned package
+#                            versions. Rendering the file on its own starts R
+#                            in dashboard/ and misses them.
+#   output-dir: _site     -> one folder to publish, which is what the GitHub
+#                            Pages workflow uploads.
+project:
+  title: fedscreen
+  output-dir: _site
+  execute-dir: project
+  render:
+    - dashboard/index.qmd

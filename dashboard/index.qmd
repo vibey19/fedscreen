@@ -1,0 +1,363 @@
+---
+title: "fedscreen"
+format:
+  dashboard:
+    orientation: rows
+    # Pages scroll instead of being squeezed into one screen. Eight indicators
+    # do not fit on a phone at any useful size, and a chart squashed to fit is
+    # worse than one you scroll to.
+    scrolling: true
+    theme: [default, fedscreen.scss]
+    nav-buttons:
+      - icon: github
+        href: https://github.com/vibey19/fedscreen
+        aria-label: Source code on GitHub
+execute:
+  echo: false
+  warning: false
+---
+
+```{r}
+#| label: setup
+
+# The dashboard reads one file: data/combined/indicators.csv. It cannot reach a
+# site database, and that is the point. Everything individual was left behind
+# at the site before this file was written.
+#
+# Quarto runs this document from the folder it sits in, so work out where the
+# project root is rather than assuming. This is the same idiom the tests use.
+project_root <- normalizePath(
+  if (file.exists("../data/combined/indicators.csv")) ".." else "."
+)
+
+# Both files source each other's dependencies with paths relative to the
+# project root, so step into it to load them and step back out again.
+local({
+  previous <- setwd(project_root)
+  on.exit(setwd(previous), add = TRUE)
+  source("R/dashboard.R")        # reading, picking rows, formatting numbers
+  source("dashboard/charts.R")   # the three charts
+})
+
+indicators <- read_indicators(
+  file.path(project_root, "data", "combined", "indicators.csv")
+)
+
+headline <- headline_level(indicators)
+by_year  <- year_level(indicators)
+by_sex   <- group_level(indicators, "sex")
+by_age   <- group_level(indicators, "age_group")
+```
+
+# Overview
+
+## Row
+
+```{r}
+#| content: valuebox
+#| title: "People invited"
+list(color = "light",
+     value = big_number(total_count(indicators, "participation")))
+```
+
+```{r}
+#| content: valuebox
+#| title: "People screened"
+list(color = "light",
+     value = big_number(total_count(indicators, "participation", "numerator")))
+```
+
+```{r}
+#| content: valuebox
+#| title: "Colonoscopies"
+list(color = "light",
+     value = big_number(total_count(indicators, "colonoscopy_completion",
+                                    "numerator")))
+```
+
+```{r}
+#| content: valuebox
+#| title: "Cancers found"
+list(color = "light",
+     value = big_number(total_count(indicators, "cancer_detection_rate",
+                                    "numerator")))
+```
+
+## Row
+
+::: {.notice}
+**All of this data is simulated.** Three fictional screening sites, invented
+parameters, no real people and no real Finnish figures. See
+[About the data](#about-the-data).
+:::
+
+## Row
+
+```{r}
+#| title: "Measured as a percentage"
+comparison_chart(headline, "proportion")
+```
+
+```{r}
+#| title: "Measured per 1,000 people"
+comparison_chart(headline, "rate_per_1000")
+```
+
+## Row {.tabset}
+
+```{r}
+#| title: "Estimates"
+knitr::kable(indicator_table(headline), align = c("l", "r", "r", "r"))
+```
+
+```{r}
+#| title: "Counts behind them"
+knitr::kable(indicator_table(headline, value_column = "counts"),
+             align = c("l", "r", "r", "r"),
+             caption = "Numerator / denominator for each cell.")
+```
+
+```{r}
+#| title: "What this shows"
+
+# A card of plain text, written from the numbers rather than typed out, so it
+# cannot drift away from them when the simulation changes.
+participation <- headline[headline$indicator == "participation", ]
+completion <- headline[headline$indicator == "colonoscopy_completion", ]
+
+lowest <- participation$site[which.min(participation$estimate)]
+worst_completion <- completion$site[which.min(completion$estimate)]
+
+knitr::asis_output(paste0(
+  "The three sites were given different parameters on purpose, so there is ",
+  "something to compare.\n\n",
+  "- Participation runs from **",
+  format_estimate(min(participation$estimate), "proportion", FALSE), "** at ",
+  lowest, " to **",
+  format_estimate(max(participation$estimate), "proportion", FALSE), "** at ",
+  participation$site[which.max(participation$estimate)], ".\n",
+  "- Colonoscopy completion is weakest at ", worst_completion, " (**",
+  format_estimate(min(completion$estimate), "proportion", FALSE),
+  "**), which in a real programme is the kind of gap a quality review would ",
+  "look at first, because a positive test with no colonoscopy after it is a ",
+  "missed chance rather than a reassurance.\n",
+  "- Every interval is a 95% confidence interval, written by hand in ",
+  "`R/indicators.R`: Wilson for percentages, exact Poisson for rates.\n\n",
+  "Where a count behind a cell was between 1 and 4 it is shown as ",
+  "*suppressed*, never as a zero."
+))
+```
+
+# Trends
+
+## Row
+
+::: {.notice}
+Three screening years per site, all sexes and ages together. Each panel has its
+own vertical scale, because a percentage and a rate per 1,000 cannot share one.
+Hover a point for the counts behind it.
+:::
+
+## Row
+
+```{r}
+#| title: "Measured as a percentage"
+trend_grid(by_year, "proportion")
+```
+
+## Row
+
+```{r}
+#| title: "Measured per 1,000 people"
+trend_grid(by_year, "rate_per_1000")
+```
+
+# Sex and age
+
+## Row
+
+```{r}
+#| content: valuebox
+#| title: "Cells shown"
+list(color = "light",
+     value = big_number(sum(!by_sex$suppressed) + sum(!by_age$suppressed)))
+```
+
+```{r}
+#| content: valuebox
+#| title: "Cells suppressed"
+list(color = "light",
+     value = big_number(sum(by_sex$suppressed) + sum(by_age$suppressed)))
+```
+
+## Row {.tabset}
+
+```{r}
+#| title: "By sex, percentages"
+breakdown_grid(by_sex, "proportion")
+```
+
+```{r}
+#| title: "By sex, per 1,000"
+breakdown_grid(by_sex, "rate_per_1000")
+```
+
+```{r}
+#| title: "By age group, percentages"
+breakdown_grid(by_age, "proportion")
+```
+
+```{r}
+#| title: "By age group, per 1,000"
+breakdown_grid(by_age, "rate_per_1000")
+```
+
+## Row {.tabset}
+
+```{r}
+#| title: "Zero is not suppressed"
+
+# This one table is the clearest thing on the dashboard: in the bottom row,
+# Site B publishes a true zero while Site A and Site C are suppressed. Showing
+# a suppressed cell as 0 would have merged the two.
+knitr::kable(
+  breakdown_table(by_age, "cancer_detection_rate"),
+  align = c("l", "r", "r", "r"),
+  caption = "Cancer detection rate per 1,000 screened, by age group."
+)
+```
+
+```{r}
+#| title: "What is missing, and why"
+
+knitr::asis_output(paste0(
+  "Suppression bites hardest exactly where you would most like the detail. ",
+  "The youngest and oldest age bands are small in these simulated ",
+  "programmes, and a rare finding in a small group gives a count of 1 to 4, ",
+  "which must not be published.\n\n",
+  "By sex: ", suppressed_note(by_sex), "\n\n",
+  "By age group: ", suppressed_note(by_age), "\n\n",
+  "Suppressed cells are left off the charts and shown as the word ",
+  "`suppressed` in the tables. They are never shown as zero. Look at the ",
+  "75 to 79 row of the table in the previous tab: Site B really did find no ",
+  "cancers in that age band, so it publishes 0.0, while Site A and Site C ",
+  "each found between 1 and 4 and so publish nothing. Zero is a finding. ",
+  "Suppressed means nobody is allowed to tell you."
+))
+```
+
+# About the data {#about-the-data}
+
+## Row
+
+```{r}
+#| title: "The data is simulated"
+
+knitr::asis_output(paste0(
+  "Every individual record behind this dashboard was generated by ",
+  "`R/simulate.R` from a fixed random seed. There are no real people in it ",
+  "and no real screening programme. The three sites are called Site A, Site B ",
+  "and Site C, and their parameters (participation, test positivity, ",
+  "colonoscopy completion, how often each finding occurs) were invented to ",
+  "make the sites different enough to compare.\n\n",
+  "**The numbers on this page are not Finnish statistics, or anybody else's. ",
+  "They must not be quoted as real.** Every parameter used is written out in ",
+  "`docs/assumptions.md`, which also says plainly that the parameters are ",
+  "invented rather than taken from a published source.\n\n",
+  "What is real is the method: the indicator definitions, the confidence ",
+  "intervals, the suppression rule and the federated structure are the ones ",
+  "you would use on real registry data."
+))
+```
+
+```{r}
+#| title: "How the federated part works"
+
+knitr::asis_output(paste0(
+  "Each site holds its own individual-level data in its own database, and ",
+  "that data is not allowed to leave. So the same R pipeline runs at each ",
+  "site, on the site's own machine, and exports only counts:\n\n",
+  "```\n",
+  "  at each site          |   centrally\n",
+  "  --------------------- | ---------------------\n",
+  "  site database         |\n",
+  "    -> local pipeline   |\n",
+  "    -> aggregate CSV   -->  schema check\n",
+  "                        |     -> combined table\n",
+  "                        |       -> this dashboard\n",
+  "```\n\n",
+  "Everything left of the CSVs stays at the site. The central step reads only ",
+  "those three aggregate files, so no individual record ever reaches it, and ",
+  "this dashboard is one step further out again: it reads a single combined ",
+  "CSV of ", format(nrow(indicators), big.mark = ","), " rows and nothing ",
+  "else.\n\n",
+  "Before anything is combined, each file is checked against a schema both ",
+  "sides agreed in advance (`schema/aggregate_schema.yml`): the columns, the ",
+  "types, the allowed values, and rules such as *no count between 1 and 4 may ",
+  "ever appear* and *a suppressed row carries no estimate*. A file that breaks ",
+  "any of them is refused, with a message naming the column, the value and ",
+  "the row. Nothing is quietly tidied up."
+))
+```
+
+## Row
+
+```{r}
+#| title: "The suppression rule"
+
+knitr::asis_output(paste0(
+  "Any cell with a count between 1 and ", SUPPRESSION_THRESHOLD - 1,
+  " is suppressed before a site exports anything. The count is replaced by ",
+  "nothing, the row is flagged, and anything computed from it (the estimate ",
+  "and both confidence limits) is removed too. A count of 0 is published, ",
+  "because it does not identify anybody, and so is any count of ",
+  SUPPRESSION_THRESHOLD, " or more.\n\n",
+  "This is what registries do to stop someone working backwards from a ",
+  "published table to a person. In a programme of this size, an age group ",
+  "with three cancers in it is a group where somebody who knows one of those ",
+  "three people could work out the rest.\n\n",
+  "It is enforced in three places: the site applies it, the site refuses to ",
+  "write its export if a small count survived, and the central step checks ",
+  "the whole rule again before combining. The site is where the mistake ",
+  "happens and the centre is where it becomes public, so it is worth ",
+  "checking twice. The rule is written up in `docs/assumptions.md`, ",
+  "including what it does not do (there is no secondary suppression here)."
+))
+```
+
+```{r}
+#| title: "Suppressed cells by site"
+
+suppression_summary <- indicators |>
+  dplyr::group_by(Site = indicators$site) |>
+  dplyr::summarise(
+    Cells = dplyr::n(),
+    Suppressed = sum(.data$suppressed),
+    `Share suppressed` = paste0(
+      formatC(100 * sum(.data$suppressed) / dplyr::n(), format = "f",
+              digits = 1), "%"
+    ),
+    .groups = "drop"
+  )
+
+knitr::kable(suppression_summary, align = c("l", "r", "r", "r"),
+             caption = paste("Across all breakdown levels. The combined table",
+                             "has", format(nrow(indicators), big.mark = ","),
+                             "rows in all."))
+```
+
+```{r}
+#| title: "Where to look next"
+
+knitr::asis_output(paste0(
+  "- `docs/indicators.md`: every indicator with its numerator, denominator ",
+  "and a one-line plain explanation.\n",
+  "- `docs/assumptions.md`: every simulation parameter, and the suppression ",
+  "rule in full.\n",
+  "- `R/indicators.R`: the Wilson and Poisson intervals, written out rather ",
+  "than taken from a package.\n",
+  "- `schema/aggregate_schema.yml`: the contract a site exports against.\n\n",
+  "Built with R and Quarto. The whole pipeline runs with one command: ",
+  "`targets::tar_make()`."
+))
+```
