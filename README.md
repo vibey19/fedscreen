@@ -20,9 +20,9 @@ every parameter used.
 
 ## Status
 
-Work in progress. The simulated data, the indicators and the local pipeline
-are in place (phases 1 and 2). The central combination step and the dashboard
-are still to come.
+Work in progress. The pipeline runs end to end: simulated data, local
+indicators at each site, and the central step that checks and combines what
+the sites export. The dashboard is still to come.
 
 ## Getting started
 
@@ -33,35 +33,55 @@ package versions:
 renv::restore()
 ```
 
-Then generate the three site databases:
+Then run the whole pipeline:
 
-```r
-source("R/simulate.R")
-build_all_sites()
+```sh
+Rscript -e 'targets::tar_make()'
 ```
 
-That writes one duckdb file per site into `data/sites/`. Those files are not
-kept in the repository, because they stand in for data that is not allowed to
-leave a site. They are rebuilt from a fixed seed, so everyone gets identical
-data.
+That takes about a second and does four things in order:
 
-Then run the local pipeline at each site. This is the step that in a real
-federated study would run on the site's own machine:
+1. **Simulate** one duckdb database per site into `data/sites/`. These files
+   are not kept in the repository, because they stand in for data that is not
+   allowed to leave a site. They are rebuilt from a fixed seed, so everyone
+   gets identical data.
+2. **Run the local pipeline** at each site, which is the step that in a real
+   federated study would run on the site's own machine. Each site writes one
+   aggregate CSV to `data/aggregates/`.
+3. **Check** every export against `schema/aggregate_schema.yml`. If a site
+   sends something that does not match the agreed shape, the pipeline stops
+   and says exactly what is wrong.
+4. **Combine** the checked exports into `data/combined/indicators.csv`, which
+   is the only file the dashboard reads.
 
-```r
-source("R/local_pipeline.R")
-run_all_local_pipelines()
-```
+`targets` keeps track of what depends on what, so a second run with nothing
+changed does nothing, and changing the schema re-runs the checking without
+re-simulating the data.
 
-Each site writes one aggregate CSV to `data/aggregates/`. Those files are
-small and are kept in the repository, because they are what a site is allowed
-to share.
-
-To run the tests:
+To run the tests (138 of them):
 
 ```sh
 Rscript -e 'testthat::test_dir("tests/testthat")'
 ```
+
+## How the federated part works
+
+```
+Site A database  ->  local pipeline  ->  site_a.csv  \
+Site B database  ->  local pipeline  ->  site_b.csv   >  check  ->  combine  ->  dashboard
+Site C database  ->  local pipeline  ->  site_c.csv  /
+```
+
+Everything to the left of the CSVs stays at the site. The central step reads
+only the aggregate files, so no individual record ever reaches it. The
+aggregate files are small, readable and kept in the repository, so you can see
+for yourself exactly what a site shares.
+
+Each file is checked against a schema that both sides agree on in advance:
+the columns, the types, the allowed values, and rules such as "no count
+between 1 and 4 may ever appear" and "a suppressed row carries no estimate".
+A file that breaks any of them is refused, with a message naming the column,
+the value and the row.
 
 ## Indicators
 
