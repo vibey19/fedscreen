@@ -1,0 +1,11 @@
+# The Dockerfile copies named folders, so nothing here is needed in the
+# image. Leaving these out of the build context keeps the build quick: the
+# package library alone is hundreds of megabytes.
+.git/
+_targets/
+_site/
+.quarto/
+data/sites/
+renv/library/
+renv/staging/
+renv/sandbox/
