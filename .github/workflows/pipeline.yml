@@ -1,0 +1,99 @@
+# Runs the project on every push and publishes the dashboard.
+#
+# The steps are the ones the README tells a person to run, in the same order,
+# so if the README stops being true this goes red.
+
+name: pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Only the publishing job needs more than read access, so it asks for the
+# extra permissions itself.
+permissions:
+  contents: read
+
+# Publish one at a time, and never cancel a half-finished deployment.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Pinned rather than ubuntu-latest, because the package URL below names
+    # this Ubuntu release.
+    runs-on: ubuntu-24.04
+
+    env:
+      # renv.lock points at CRAN, which only ships source packages for Linux.
+      # Posit's public package manager serves ready-built ones for Ubuntu
+      # 24.04 ("noble"), which turns a 40 minute first run into a few minutes.
+      RENV_CONFIG_REPOS_OVERRIDE: https://p3m.dev/cran/__linux__/noble/latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # System libraries the R packages are built against.
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libcurl4-openssl-dev libglpk-dev libicu-dev libssl-dev libxml2-dev
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.5.2'
+          use-public-rspm: true
+
+      # Installs exactly the versions in renv.lock, and caches them so later
+      # runs do not download them again.
+      - uses: r-lib/actions/setup-renv@v2
+
+      - uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: 1.10.19
+
+      - name: Run the tests
+        run: Rscript -e 'testthat::test_dir("tests/testthat")'
+
+      - name: Run the pipeline
+        run: Rscript -e 'targets::tar_make()'
+
+      # The aggregate CSVs are kept in the repository and the pipeline has
+      # just rebuilt them from a fixed seed. If they differ, the run was not
+      # reproducible, which is the one thing this project claims.
+      - name: Check the rebuilt aggregates match the committed ones
+        run: git diff --exit-code -- data/aggregates data/combined
+
+      - name: Render the dashboard
+        run: quarto render
+
+      # quarto writes to _site/dashboard, so that folder becomes the root of
+      # the published site.
+      - name: Package the dashboard for Pages
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site/dashboard
+
+  # Publishing is a separate job because it needs write access to Pages, and
+  # only the main branch should ever be published.
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Publish to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
