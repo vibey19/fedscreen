@@ -2,6 +2,10 @@
 
 **Federated colorectal cancer screening indicators.**
 
+[![pipeline](https://github.com/vibey19/fedscreen/actions/workflows/pipeline.yml/badge.svg)](https://github.com/vibey19/fedscreen/actions/workflows/pipeline.yml)
+
+**Dashboard: <https://vibey19.github.io/fedscreen/>**
+
 This project is a small, working example of federated analysis for cancer
 screening statistics. Three fictional screening sites each hold their own
 individual-level data in their own local database. Each site runs the same R
@@ -24,8 +28,8 @@ The pipeline runs end to end: simulated data, local indicators at each site,
 the central step that checks and combines what the sites export, and a
 dashboard built from the combined table. It all runs in Docker from one
 command, and every push to this repository runs the tests and the pipeline
-and publishes the dashboard. Still to come: a screenshot and a final pass on
-the README.
+and publishes the dashboard to the link above. Still to come: a screenshot
+and a final pass on the README.
 
 ## Getting started
 
@@ -109,7 +113,9 @@ just rebuilt from a fixed seed, so if the rebuilt files differ from the
 committed ones by so much as a digit, the run fails. That is the claim of
 reproducibility, tested rather than asserted.
 
-Finally, on `main`, the rendered dashboard is published to GitHub Pages.
+Finally, on `main`, the rendered dashboard is published to GitHub Pages at
+<https://vibey19.github.io/fedscreen/>, so the published dashboard is always
+the one built from the code on `main`.
 
 ## How the federated part works
 
