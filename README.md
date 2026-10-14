@@ -20,11 +20,12 @@ every parameter used.
 
 ## Status
 
-Work in progress. The pipeline runs end to end: simulated data, local
-indicators at each site, the central step that checks and combines what the
-sites export, and a dashboard built from the combined table. Still to come:
-a Dockerfile, and a GitHub Actions workflow to run the tests and publish the
-dashboard.
+The pipeline runs end to end: simulated data, local indicators at each site,
+the central step that checks and combines what the sites export, and a
+dashboard built from the combined table. It all runs in Docker from one
+command, and every push to this repository runs the tests and the pipeline
+and publishes the dashboard. Still to come: a screenshot and a final pass on
+the README.
 
 ## Getting started
 
@@ -75,6 +76,40 @@ To run the tests (181 of them):
 ```sh
 Rscript -e 'testthat::test_dir("tests/testthat")'
 ```
+
+## Running it in Docker
+
+If you would rather not install R, Quarto and the packages, everything runs
+in a container instead:
+
+```sh
+docker build -t fedscreen .
+docker run --rm -v "$PWD/_site:/project/_site" fedscreen
+```
+
+The build installs R 4.5.2, the exact package versions from `renv.lock` and
+Quarto 1.10, then the run does the three steps above: tests, pipeline,
+dashboard. The `-v` option maps the container's output folder onto your own,
+so when it finishes you can open `_site/dashboard/index.html` on your
+machine.
+
+The build takes a few minutes, mostly downloading. It works on both Intel and
+Apple Silicon machines: the packages are fetched ready-built for whichever
+one you are on, so nothing is compiled.
+
+## Automatic checks
+
+`.github/workflows/pipeline.yml` runs on every push. It restores the pinned
+package versions, runs the tests, runs the pipeline, and renders the
+dashboard, which is to say it does exactly what this README asks a person to
+do. If an instruction here stops working, the run goes red.
+
+It then checks one more thing: the aggregate CSVs in this repository were
+just rebuilt from a fixed seed, so if the rebuilt files differ from the
+committed ones by so much as a digit, the run fails. That is the claim of
+reproducibility, tested rather than asserted.
+
+Finally, on `main`, the rendered dashboard is published to GitHub Pages.
 
 ## How the federated part works
 
